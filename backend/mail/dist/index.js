@@ -13,7 +13,7 @@ app.use(cors({
 }));
 // IMPORTANT
 // app.options("*", cors());
-app.listen(3000, () => {
+app.listen(3001, () => {
     console.log('Mail service is running...');
 });
 export default app;
