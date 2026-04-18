@@ -5,6 +5,7 @@ import { redisClient } from "../index.js";
 import User from "../model/user.js";
 import jwt from "jsonwebtoken";
 export const loginUser = TryCatch(async (req, res) => {
+    // console.log('dd')
     const { email } = req.body;
     const rateLimitKey = `otp:rate-limit:${email}`;
     const rateLimit = await redisClient.get(rateLimitKey);

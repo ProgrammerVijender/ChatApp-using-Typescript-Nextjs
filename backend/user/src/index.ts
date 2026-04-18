@@ -20,6 +20,7 @@ export const redisClient = createClient({
 const port = process.env.PORT || 3000;
 
 redisClient.connect().then(() => {
+  // console.log('rediss details : =-' + redisClient);
   console.log('Connected to Redis');
 }).catch((err) => {
   console.error('Redis connection error:', err);

@@ -128,15 +128,15 @@ export const getAllChats = TryCatch(async (req: AuthenticatedRequest, res) => {
         seen: false,
       });
       
-      console.log('chalra h ');
+      
       try {
-         otherUserId;
-        console.log(`other id : --  ${otherUserId}`);
+         const oID = otherUserId?.toString();//
+        console.log(`other id : --  ${oID}`);
         const { data } = await axios.get(
-          `http://localhost:5020/api/v1/user/${otherUserId}`, // not working with this
+          `http://localhost:5020/api/v1/user/${oID}`, // not working with this
           // `http://localhost:5020/api/v1/user/69678e99c18dcf252f21fc7b`, // working with this
         );
-        console.log( data );
+        
 
         return {
           user: data,
@@ -185,6 +185,13 @@ export const sendMessage = TryCatch(async (req: AuthenticatedRequest, res) => {
     return;
   }
 
+  if (!mongoose.isValidObjectId(chatId)) {
+    res.status(400).json({
+      message: "Invalid chat id",
+    });
+    return;
+  }
+
   if (!text && !imageFile) {
     res.status(400).json({
       message: "Text or image is required",
@@ -226,7 +233,7 @@ export const sendMessage = TryCatch(async (req: AuthenticatedRequest, res) => {
   // socket setup krre h idhar
 
   let messageData: any = {
-    chatId: chatId,
+    chatId: chat._id,
     sender: senderId,
     seen: false,
     seenAt: undefined,
@@ -276,10 +283,18 @@ export const getMessagesByChat = TryCatch(
   async (req: AuthenticatedRequest, res) => {
     const userId = req.user?._id;
     const { chatId } = req.params;
+      
 
     if (!userId) {
       res.status(400).json({
         message: "Chat id Required",
+      });
+      return;
+    }
+
+    if (!mongoose.isValidObjectId(chatId)) {
+      res.status(400).json({
+        message: "Invalid chat id",
       });
       return;
     }
@@ -294,7 +309,7 @@ export const getMessagesByChat = TryCatch(
     }
 
     const isUserInChat = chat.users.some(
-      (userId) => userId.toString() === userId.toString(),
+      (id) => id.toString() === userId.toString(),
     );
 
     if (!isUserInChat) {
@@ -310,16 +325,15 @@ export const getMessagesByChat = TryCatch(
     //         seen: false,
     //     }
     // );
-
     const messageToMarkSeen = await Messages.find({
-      chatId: [],
+      chatId: chat._id,
       sender: { $ne: userId as any },
       seen: false,
     });
 
     await Messages.updateMany(
       {
-        chatId: [],
+        chatId: chat._id,
         sender: { $ne: userId as any },
         seen: false,
       },
@@ -329,25 +343,24 @@ export const getMessagesByChat = TryCatch(
       },
     );
 
-    const messages = await Messages.find({ chatId: [] }).sort({ createdAt: 1 });
+    const messages = await Messages.find({ chatId: chat._id }).sort({ createdAt: 1 });
 
     const otherUserId = chat.users.find(
       (id) => id.toString() !== userId.toString(),
     );
 
+    if (!otherUserId) {
+      res.status(400).json({
+        message: "No Other user",
+      });
+      return;
+    }
+
     try {
       const { data } = await axios.get(
         `http://localhost:5020/api/v1/user/${otherUserId}`,
       );
-
-      if (!otherUserId) {
-        res.status(400).json({
-          message: "No Other user",
-        });
-        return;
-      }
       
-      // socket work
       res.json({
         messages: messages,
         user: data,

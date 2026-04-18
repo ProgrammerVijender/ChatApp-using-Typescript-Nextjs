@@ -8,6 +8,7 @@ import jwt from "jsonwebtoken";
 
 
 export const loginUser = TryCatch(async (req, res) => {
+    // console.log('dd')
     const { email } =   req.body;
 
     const rateLimitKey = `otp:rate-limit:${email}`;
@@ -54,6 +55,8 @@ export const verifyUser = TryCatch(async (req, res) => {
 
     await redisClient.del(otpKey);
 
+
+    
     // res.status(200).json({ message: 'User verified successfully' });
 
     let user = await User.findOne({ email });

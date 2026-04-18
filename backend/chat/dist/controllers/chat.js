@@ -99,12 +99,10 @@ export const getAllChats = TryCatch(async (req, res) => {
             sender: { $ne: userId },
             seen: false,
         });
-        console.log('chalra h ');
         try {
-            otherUserId;
-            console.log(`other id : --  ${otherUserId}`);
-            const { data } = await axios.get(`http://localhost:5020/api/v1/user/${otherUserId}`);
-            console.log(data);
+            const oID = otherUserId?.toString(); //
+            console.log(`other id : --  ${oID}`);
+            const { data } = await axios.get(`http://localhost:5020/api/v1/user/${oID}`);
             return {
                 user: data,
                 chat: {
@@ -146,6 +144,12 @@ export const sendMessage = TryCatch(async (req, res) => {
         });
         return;
     }
+    if (!mongoose.isValidObjectId(chatId)) {
+        res.status(400).json({
+            message: "Invalid chat id",
+        });
+        return;
+    }
     if (!text && !imageFile) {
         res.status(400).json({
             message: "Text or image is required",
@@ -175,7 +179,7 @@ export const sendMessage = TryCatch(async (req, res) => {
     }
     // socket setup krre h idhar
     let messageData = {
-        chatId: chatId,
+        chatId: chat._id,
         sender: senderId,
         seen: false,
         seenAt: undefined,
@@ -219,6 +223,12 @@ export const getMessagesByChat = TryCatch(async (req, res) => {
         });
         return;
     }
+    if (!mongoose.isValidObjectId(chatId)) {
+        res.status(400).json({
+            message: "Invalid chat id",
+        });
+        return;
+    }
     const chat = await Chat.findById(chatId);
     if (!chat) {
         res.status(404).json({
@@ -226,7 +236,7 @@ export const getMessagesByChat = TryCatch(async (req, res) => {
         });
         return;
     }
-    const isUserInChat = chat.users.some((userId) => userId.toString() === userId.toString());
+    const isUserInChat = chat.users.some((id) => id.toString() === userId.toString());
     if (!isUserInChat) {
         res.status(403).json({
             message: "You are not a participant of this chat",
@@ -241,29 +251,28 @@ export const getMessagesByChat = TryCatch(async (req, res) => {
     //     }
     // );
     const messageToMarkSeen = await Messages.find({
-        chatId: [],
+        chatId: chat._id,
         sender: { $ne: userId },
         seen: false,
     });
     await Messages.updateMany({
-        chatId: [],
+        chatId: chat._id,
         sender: { $ne: userId },
         seen: false,
     }, {
         seen: true,
         seenAt: new Date(),
     });
-    const messages = await Messages.find({ chatId: [] }).sort({ createdAt: 1 });
+    const messages = await Messages.find({ chatId: chat._id }).sort({ createdAt: 1 });
     const otherUserId = chat.users.find((id) => id.toString() !== userId.toString());
+    if (!otherUserId) {
+        res.status(400).json({
+            message: "No Other user",
+        });
+        return;
+    }
     try {
         const { data } = await axios.get(`http://localhost:5020/api/v1/user/${otherUserId}`);
-        if (!otherUserId) {
-            res.status(400).json({
-                message: "No Other user",
-            });
-            return;
-        }
-        // socket work
         res.json({
             messages: messages,
             user: data,
