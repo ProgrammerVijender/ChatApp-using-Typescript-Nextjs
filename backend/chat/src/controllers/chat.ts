@@ -114,52 +114,46 @@ export const getAllChats = TryCatch(async (req: AuthenticatedRequest, res) => {
   // console.log('chats ' + chats);
   // console.log(JSON.stringify(chats.users, null, 2));
   console.log(chats );
-  const chatWithUserData = await Promise.all(
-    chats.map(async (chat) => {
-      const otherUserId = chat.users.find(
-        (id) => id.toString() !== userId.toString()
-      );
-      // console.log('otehr id ' +otherUserId)
-      
-      
-      const unseenCount = await Messages.countDocuments({
-        chatId: chat._id,
-        sender: { $ne: userId as any },
-        seen: false,
-      });
-      
-      
-      try {
-         const oID = otherUserId?.toString();//
-        console.log(`other id : --  ${oID}`);
-        const { data } = await axios.get(
-          `http://localhost:5020/api/v1/user/${oID}`, // not working with this
-          // `http://localhost:5020/api/v1/user/69678e99c18dcf252f21fc7b`, // working with this
+  const chatWithUserData = (
+    await Promise.all(
+      chats.map(async (chat) => {
+        const otherUserId = chat.users.find(
+          (id) => id.toString() !== userId.toString()
         );
-        
 
-        return {
-          user: data,
-          chat: {
-            ...chat.toObject(),
-            latestMessage: chat.latestMessage || null,
-            unseenCount,
-          },
-        };
-      } catch (error) {
-        console.log(error);
+        const unseenCount = await Messages.countDocuments({
+          chatId: chat._id,
+          sender: { $ne: userId as any },
+          seen: false,
+        });
 
-        return {
-          user: { _id: otherUserId, name: "Unknown User" },
-          chat: {
-            ...chat.toObject(),
-            latestMessage: chat.latestMessage || null,
-            unseenCount,
-          },
-        };
-      }
-    }),
-  );
+        try {
+          const { data } = await axios.get(
+            `http://localhost:5020/api/v1/user/${otherUserId?.toString()}`
+          );
+
+          return {
+            user: data,
+            chat: {
+              ...chat.toObject(),
+              latestMessage: chat.latestMessage || null,
+              unseenCount,
+            },
+          };
+        } catch (error: any) {
+          if (error?.response?.status === 404) return null;
+          return {
+            user: { _id: otherUserId, name: "Unknown User" },
+            chat: {
+              ...chat.toObject(),
+              latestMessage: chat.latestMessage || null,
+              unseenCount,
+            },
+          };
+        }
+      })
+    )
+  ).filter(Boolean);
 
   res.json({
     chats: chatWithUserData,
