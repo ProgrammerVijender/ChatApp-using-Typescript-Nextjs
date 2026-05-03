@@ -6,6 +6,7 @@ import axios from "axios";
 // import User from "../models/user.js";
 
 import mongoose from "mongoose";
+import { getRecieverSocketId, io } from "../config/socket.js";
 
 // const chatObjectId = new mongoose.Types.ObjectId(chatId) as object;
 // const userObjectId = new mongoose.Types.ObjectId(userId);
@@ -225,12 +226,23 @@ export const sendMessage = TryCatch(async (req: AuthenticatedRequest, res) => {
   }
 
   // socket setup krre h idhar
+  const receiverSocketId = getRecieverSocketId(otherUserId.toString());
+  
+  let isReceiverInChatRoom = false;
+
+  if (receiverSocketId) {
+    const receiverSocket = io.sockets.sockets.get(receiverSocketId);
+    if (receiverSocket && receiverSocket.rooms.has(chatId) ) {
+      isReceiverInChatRoom = true;
+    }
+  }
+
 
   let messageData: any = {
     chatId: chat._id,
     sender: senderId,
-    seen: false,
-    seenAt: undefined,
+    seen: isReceiverInChatRoom,
+    seenAt: isReceiverInChatRoom ? new Date() : undefined,
   };
 
   if (imageFile) {
@@ -267,6 +279,30 @@ export const sendMessage = TryCatch(async (req: AuthenticatedRequest, res) => {
   );
 
   // emit to socket io here
+  io.to(chatId).emit("newMessage", savedMessage);
+
+  if(receiverSocketId)
+  {
+    io.to(receiverSocketId).emit("newMessage", savedMessage);
+  }
+
+  const senderSocketId = getRecieverSocketId(senderId.toString());
+
+  if(senderSocketId)
+  {
+    io.to(senderSocketId).emit("newMessage", savedMessage);
+  }
+
+  if(isReceiverInChatRoom && senderSocketId)
+  {
+    io.to(senderSocketId).emit("messageSeen", {
+      chatId: chatId,
+      senderId: senderId,
+      messageIds: [savedMessage._id],
+    });
+    
+  }
+
   res.status(201).json({
     message: savedMessage,
     sender: senderId,
@@ -350,13 +386,31 @@ export const getMessagesByChat = TryCatch(
       return;
     }
 
+    // emit to socket io here for seen message
+
+
     try {
       const { data } = await axios.get(
         `http://localhost:5020/api/v1/user/${otherUserId}`,
       );
+
+
+      if(messageToMarkSeen.length > 0)
+      {
+        const otherUserSocketId = getRecieverSocketId(otherUserId.toString());
+
+        if(otherUserSocketId)
+        {
+          io.to(otherUserSocketId).emit("messageSeen", {
+            chatId: chat._id,
+            senderId: userId,
+            messageIds: messageToMarkSeen.map((msg) => msg._id),
+          });
+        }
+      }
       
       res.json({
-        messages: messages,
+        messages,
         user: data,
       });
     } catch (error) {

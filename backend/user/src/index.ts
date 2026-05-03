@@ -16,6 +16,9 @@ connectRabbitMQ();
 
 export const redisClient = createClient({
   url: process.env.REDIS_URL || 'redis://localhost:6379',
+  socket: {
+    reconnectStrategy: (retries: number) => Math.min(retries * 50, 2000),
+  } as any,
 });
 const port = process.env.PORT || 3010;
 

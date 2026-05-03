@@ -15,6 +15,10 @@ const io = new Server(server, {
 
 const userSocketMap: Record<string, string> = {};
 
+export const getRecieverSocketId = (recieverId: string): string | undefined => {
+    return userSocketMap[recieverId] ;
+};
+
 io.on('connection', (socket: Socket) => {
     const userId = socket.handshake.query.userId as string | undefined;
 
@@ -56,9 +60,6 @@ io.on('connection', (socket: Socket) => {
         console.log(`User ${userId} left chat room ${chatId}`);
     });
 
-    
-    
-
     socket.on('disconnect', () => {
         if (userId && userId !== 'undefined') {
             delete userSocketMap[userId];
@@ -67,5 +68,11 @@ io.on('connection', (socket: Socket) => {
         }
     });
 });
+
+ 
+
+
+
+ 
 
 export { app, server, io };
